@@ -1,0 +1,5 @@
+art==5.2
+discord.py==1.7.3
+motor==2.5.0
+discord==1.7.3
+PyYAML==5.4.1

@@ -1,0 +1,16 @@
+---
+# BOT
+bot_token:
+
+# ^^ OPTIONAL ^^
+#  BOT
+scopes:
+permissions:
+prefix:
+owner:
+# LOGGING
+online_log_channel:
+# DB
+mongo_db_uri:
+# ^^ OPTIONAL ^^
+
