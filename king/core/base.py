@@ -144,7 +144,7 @@ class Database(ABC):
 
     @abstractmethod
     async def _find(self) -> dict:
-        raise NotImplementedError
+        raise NotImplementedError()
 
     async def insert_one(self, guild_id: int, entry: dict) -> None:
         """Inserts the given entry into the MongoDB database, as well as the cache and YAML file.
