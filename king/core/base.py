@@ -1,6 +1,10 @@
 from abc import ABC, abstractmethod
+import asyncio
 import json
 from pathlib import Path
+import time
+from cachetools import LFUCache
+from motor.motor_asyncio import AsyncIOMotorCollection
 import yaml
 from .errors import CacheNotFoundError, DatabaseNotFoundError
 from .utils.color import printer
@@ -12,18 +16,29 @@ class Manager:
 
     dir_ = Path("core/data")
 
-    def __init__(self, path_):
+    def __init__(self, path_, config: dict):
         Path.mkdir(Manager.dir_, parents=True, exist_ok=True)
         Path.touch(path_, exist_ok=True)
 
         with open(path_) as p:
-            name = self.__class__.__name__[:-7].upper()
-            self._cached: dict = yaml.load(
+            started = time.time()
+            self.name = self.__class__.__name__[:-7].upper()
+            self._config = config
+            self._max_size = self._config["CACHE_SIZE"]
+            self._cached: LFUCache = LFUCache(self._max_size)
+            local_storage: dict = yaml.load(
                 p, Loader=yaml.FullLoader)
-            self._cached = self._cached if self._cached else {}
-            printer("DATA", f"{name} CACHE IS {self._cached}")
+            self._cached.update(local_storage) if local_storage else {}
+            elapsed = time.time() - started
+            printer(
+                "DATA", f"{self.name} CACHE WAS SET IN {elapsed}SECONDS and MAXSIZE IS {self._cached.maxsize}")
 
     def _fetch_yaml(self) -> dict:
+        """Returns a dictionary version of the YAML configuration.
+
+        Returns:
+            dict: Dict representation of the YAML file.
+        """
         with open(self.path_) as p:
             return yaml.load(
                 p, Loader=yaml.FullLoader)
@@ -50,12 +65,17 @@ class Manager:
         Args:
             new_config (dict): The new configuration to set the YAML file to.
         """
-        name = self.__class__.__name__[:-7].upper()
         with open(self.path_, 'w') as p:
             printer(
-                "INFO", f"SYNCING YAML WITH {name} CACHE \n{new_config}\n")
+                "INFO", f"SYNCING YAML WITH {self.name} CACHE \n{new_config}\n")
 
             yaml.safe_dump(new_config, p)
+
+    @staticmethod
+    def dict_to_cache(dict_: dict, size: int) -> LFUCache:
+        l = LFUCache(maxsize=size)
+        l.update(dict_)
+        return l
 
     @property
     def cache(self) -> dict:
@@ -68,19 +88,13 @@ class Manager:
         Args:
             new_cache (dict): The new configuration to set the cache on.
         """
-        name = self.__class__.__name__[:-7].upper()
+        new_cache = self.dict_to_cache(new_cache, self._max_size)
         if new_cache == self._cached:
-            printer(
-                "ERROR", f"{name} CACHE AND DATABASE ALREADY MATCH")
             return
 
-            # only indexing -7 because I know the class name will never change
-
         self._cached = new_cache
-        printer(
-            "DATA", f"{name} CACHE IS NOW {self._cached}")
-        self._set_yaml(self._cached)
-        return printer("DATA", f"NEW {name} CACHE IS {self._cached}")
+        self._set_yaml(dict(self._cached))
+        return
 
     async def find_one(self, entry: dict) -> dict:
         """Looks at the cache for the given entry and returns the results. If no entry is found, the actual file will be looked at and the cache will be updated.
@@ -94,7 +108,6 @@ class Manager:
         Returns:
             list[str]: A list of results from the queried entry.
         """
-
         key = str(list(entry.values())[0])
 
         # we can do this since there will always be a default assigned
@@ -103,12 +116,12 @@ class Manager:
             return ret
 
         # Tries with refreshed cache in case it fails
-        self._cached = self._fetch_yaml()
-        ret = self._cached.get(key, None)
+        ret = self._fetch_yaml().get(key, None)
         if ret:
+            self._cached.update({key: ret})
             return ret
         raise CacheNotFoundError(
-            f"No value found for given key. {key}")
+            f"No {self.name} entry found in cache for given key. {key}")
 
     async def insert_one(self, key: int, value: dict) -> None:
         """Inserts a value into the yaml configuration, updating the cached config as well.
@@ -125,6 +138,11 @@ class Manager:
 class Database(ABC):
     """Common class that represents a database.
     """
+
+    def __init__(self, config: dict, collection_name: str) -> None:
+        self._config: dict = config
+        self._collection: AsyncIOMotorCollection = config['CLUSTER'][collection_name]
+        self.loop = asyncio.get_event_loop()
 
     @property
     def cache(self) -> dict:
@@ -171,17 +189,21 @@ class Database(ABC):
         Returns:
             dict: A dictionary representing the result.
         """
+        name = self.collection_name
+
         # This will try from the cache first and then YAML
         try:
             ret = await self._cache_manager.find_one(entry)
             if ret:
                 return ret
-        except CacheNotFoundError:
+        except CacheNotFoundError as e:
+            pass
 
             # Contact database as the last resort
             ret = await self._collection.find_one(entry)
             if ret:
+                self._cache_manager.cache.update(entry)
                 return ret
 
             raise DatabaseNotFoundError(
-                f"No value found for given key. {list(entry.values())[0]}")
+                f"No {name} entry found in database for given key. {list(entry.values())[0]}")

@@ -4,6 +4,7 @@ bot_token:
 
 # ^^ OPTIONAL ^^
 #  BOT
+cache_size:
 scopes:
 permissions:
 prefix:

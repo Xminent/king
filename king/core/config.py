@@ -18,6 +18,7 @@ class Config:
         # BASE CONFIGURATION
         self.NAME: str = config.pop("name", "KingBot")
         self.BOT_TOKEN: str = config.pop("bot_token", None)
+        self.CACHE_SIZE: int = config.pop("cache_size", 100)
         self.MONGO_DB_URI: str = config.pop("mongo_db_uri", None)
         self.PREFIX: str = config.pop("prefix", "!")
         self.OWNER: int = config.pop("owner", 155780111197536256)
@@ -129,8 +130,8 @@ class Config:
         try:
             exists = await self.blacklist.find_one({"_id": guild_id})
 
-        except (CacheNotFoundError, DatabaseNotFoundError) as e:
-            print(e)
+        except (CacheNotFoundError, DatabaseNotFoundError):
+            pass
 
         finally:
             if not exists:  # if no blacklist for guild exists..

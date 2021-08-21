@@ -42,6 +42,7 @@ def printer(msg_type: str, msg: Union[int, str, float]) -> None:
         - ERROR: red
         - BANNER: cyan
         - DEBUG: magenta
+        - SUCCESS: green
 
         msg (str): The message to send.
 
@@ -59,6 +60,8 @@ def printer(msg_type: str, msg: Union[int, str, float]) -> None:
         return print(Color.magenta("[DEBUG!] : " + str(msg)) + Color.reset(" "))
     elif msg_type == "DATA":
         return print(Color.blue("[DATA!] : " + str(msg)) + Color.reset(" "))
+    elif msg_type == "SUCCESS":
+        return print(Color.green("[SUCCESS!] : " + str(msg)) + Color.reset(" "))
 
     raise NoMessageTypeError("No message type was provided.")
 
@@ -72,6 +75,7 @@ def colorify(msg_type: str, msg: Union[int, str, float]) -> str:
         - ERROR: red
         - BANNER: cyan
         - DEBUG: magenta
+        - SUCCESS: green
 
         msg (Union[int, str, float]): The message to send.
 
@@ -91,5 +95,7 @@ def colorify(msg_type: str, msg: Union[int, str, float]) -> str:
         return(Color.magenta("[DEBUG!] : " + str(msg)) + Color.reset(" "))
     elif msg_type == "DATA":
         return(Color.blue("[DATA!] : " + str(msg)) + Color.reset(" "))
+    elif msg_type == "SUCCESS":
+        return(Color.green("[SUCCESS!] : " + str(msg)) + Color.reset(" "))
 
     raise NoMessageTypeError("No message type was provided.")

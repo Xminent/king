@@ -50,6 +50,7 @@ def init_events(bot):
         embed.add_field(name='Region', value=guild.region, inline=True)
         embed.add_field(name='Members', value=guild.member_count, inline=True)
         embed.add_field(name='Created On', value=guild.created_at, inline=True)
+        printer("SUCCESS", f"GUILD {guild.id} ADDED BOT TO THEIR SERVER")
         await bot.app_info.owner.send(embed=embed)
 
         await bot._config.register_guild_default(guild.id)
